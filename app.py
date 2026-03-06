@@ -178,8 +178,30 @@ def c_dogrula_sessiz(markers: list) -> bool:
         return False
 
 # ── Harita ──────────────────────────────────────────────────────────────────
-def harita_olustur(markers: list, filtre: str = "Tümü") -> folium.Map:
+def harita_olustur(markers: list, filtre: str = "Tümü", secilen: tuple = None) -> folium.Map:
     m = folium.Map(location=BURSA_CENTER, zoom_start=13, tiles="CartoDB positron")
+
+    # Seçilen ama henüz kaydedilmemiş konum — çift daire işareti
+    if secilen:
+        folium.CircleMarker(
+            location=secilen,
+            radius=16,
+            color="#e91e8c",
+            fill=True,
+            fill_color="#e91e8c",
+            fill_opacity=0.18,
+            weight=2,
+            tooltip="Seçilen konum — sağ panelden bilgileri gir",
+        ).add_to(m)
+        folium.CircleMarker(
+            location=secilen,
+            radius=5,
+            color="#e91e8c",
+            fill=True,
+            fill_color="#e91e8c",
+            fill_opacity=1.0,
+            weight=0,
+        ).add_to(m)
 
     gosterilecek = [mk for mk in markers if filtre == "Tümü" or mk["durum"] == filtre]
 
@@ -269,18 +291,23 @@ with col_harita:
         )
         st.session_state.filtre = filtre_sec
 
-    harita = harita_olustur(st.session_state.markers, st.session_state.filtre)
+    harita = harita_olustur(
+        st.session_state.markers,
+        st.session_state.filtre,
+        secilen=st.session_state.secilen_konum,
+    )
     map_data = st_folium(harita, height=530, use_container_width=True, key="ana_harita")
 
     # Tıklanan konum yakala
     if map_data and map_data.get("last_clicked"):
         latlng = map_data["last_clicked"]
         st.session_state.secilen_konum = (latlng["lat"], latlng["lng"])
+        st.rerun()
 
     if st.session_state.secilen_konum:
         lat, lon = st.session_state.secilen_konum
         st.markdown(
-            f'<div class="konum-badge">📍 Seçilen: {lat:.5f}, {lon:.5f} &nbsp;—&nbsp; Sağ panelden bilgileri gir ve ekle</div>',
+            f'<div class="konum-badge">📍 {lat:.5f}, {lon:.5f} &nbsp;—&nbsp; Sağ panelden kategori ve durumu seç</div>',
             unsafe_allow_html=True,
         )
 
@@ -288,7 +315,15 @@ with col_harita:
 with col_panel:
 
     # ── Bölge Ekle ──────────────────────────────────────────────────────
-    st.markdown('<div class="panel-title">Bölge Ekle</div>', unsafe_allow_html=True)
+    if st.session_state.secilen_konum:
+        st.markdown("""
+        <div style="background:linear-gradient(135deg,#6c3483,#e91e8c);color:white;
+                    border-radius:10px;padding:0.55rem 1rem;font-weight:700;
+                    font-size:0.95rem;margin-bottom:0.7rem;text-align:center">
+          Konum Seçildi — Bilgileri Doldur
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="panel-title">Bölge Ekle</div>', unsafe_allow_html=True)
 
     with st.form("marker_form", clear_on_submit=True):
         durum = st.selectbox("Durum", list(DURUM_RENK.keys()))
